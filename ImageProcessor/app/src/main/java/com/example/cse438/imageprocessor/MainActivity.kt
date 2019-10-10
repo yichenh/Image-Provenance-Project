@@ -19,20 +19,25 @@ import android.R.attr.data
 import android.app.PendingIntent.getActivity
 import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.content.pm.Signature
 import android.graphics.BitmapFactory
 import android.support.v4.app.SupportActivity
 import android.support.v4.app.SupportActivity.ExtraData
 import android.support.v4.content.ContextCompat.getSystemService
 import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.media.ExifInterface
+import android.media.MediaScannerConnection
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
-import java.security.KeyFactory
-import java.security.PrivateKey
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.util.jar.Manifest
-
-//import sun.jvm.hotspot.utilities.IntArray
+import java.math.BigInteger
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.PrivateKey
+import java.security.PublicKey
+import java.security.SecureRandom
+import java.security.Signature
 
 
 
@@ -43,7 +48,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     var REQUEST_IMAGE_CAPTURE: Int = 1
     var REQUEST_LOAD_IMAGE: Int = 2
     var MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE: Int = 3
-//    val PRIVATE_KEY: PrivateKey = KeyFactory.getInstance("EC").generatePrivate()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,38 +104,80 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun galleryAddPic() {
-        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
-            val f = File(currentPhotoPath)
-            //check permission. if not then request permission
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-                // Permission is not granted
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE)
-            }
-//            MediaStore.Images.Media.insertImage(this.contentResolver,
-//                f.absolutePath, f.name, null)
-//            mediaScanIntent.data = Uri.fromFile(f)
-//            sendBroadcast(mediaScanIntent)
-
-//            val picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
+        val f = File(currentPhotoPath)
+        //check permission. if not then request permission
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            ActivityCompat.requestPermissions(this,
+                arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE)
+        }
 
 //            val exif = ExifInterface(currentPhotoPath)
 //            exif.setAttribute(ExifInterface.TAG_ORIENTATION, "Up")
 //            exif.saveAttributes()
 //            java.security.Signature.getInstance("ECDSA").initSign(PRIVATE_KEY)
-            var values = ContentValues()
-            values.put(MediaStore.Images.Media.TITLE, "player")
-            values.put(MediaStore.Images.Media.DISPLAY_NAME, "player")
-            values.put(MediaStore.Images.Media.DESCRIPTION, "")
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
-            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
-            values.put(MediaStore.Images.Media.DATA, f.absolutePath)
-            values.put(MediaStore.Images.Media.DESCRIPTION, "ddsds")
-            this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-        }
+
+        // Generate a ECDSA Signature
+
+        // Generate a keypair
+
+        var keyGen: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
+        var random: SecureRandom = SecureRandom.getInstance("SHA1PRNG")
+
+        keyGen.initialize(256, random)
+
+        var pair: KeyPair = keyGen.generateKeyPair()
+        var priv: PrivateKey = pair.private
+        var pub: PublicKey = pair.public
+
+        /*
+         * Create a Signature object and initialize it with the private key
+         */
+
+        var dsa: Signature  = Signature.getInstance("SHA1withECDSA")
+
+        dsa.initSign(priv)
+
+        // Put the data in
+
+        var picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
+        var stream = ByteArrayOutputStream()
+        picBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+        var pba = stream.toByteArray()
+
+        dsa.update(pba)
+
+
+        /*
+         * Now that all the data to be signed has been read in, generate a
+         * signature for it
+         */
+
+        var realSig = dsa.sign()
+
+        dsa.initVerify(pub)
+        dsa.update(pba)
+        var isReal = dsa.verify(realSig)
+
+
+        var values = ContentValues()
+        values.put(MediaStore.Images.Media.TITLE, "player")
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, "player")
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
+        values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+        values.put(MediaStore.Images.Media.DATA, f.absolutePath)
+        this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+
+
+//        var exif = ExifInterface(currentPhotoPath)
+//        exif.setAttribute("signature", realSig.toString())
+//        exif.setAttribute(ExifInterface.TAG_SOFTWARE, "Yichen")
+//        exif.setAttribute(ExifInterface.TAG_DATETIME, "10:10:10")
+//        exif.saveAttributes()
+//        currentPhotoPath = MediaStore.Images.Media.insertImage(this.contentResolver, currentPhotoPath, "Test", "lll")
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
@@ -166,6 +212,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             currentPhotoPath = absolutePath
         }
     }
+
 
 
 }
