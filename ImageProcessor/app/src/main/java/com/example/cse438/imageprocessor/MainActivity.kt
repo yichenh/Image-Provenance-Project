@@ -26,20 +26,16 @@ import android.support.v4.content.ContextCompat.getSystemService
 import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.media.ExifInterface
 import android.media.MediaScannerConnection
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.jar.Manifest
 import java.math.BigInteger
-import java.security.KeyPair
-import java.security.KeyPairGenerator
-import java.security.PrivateKey
-import java.security.PublicKey
-import java.security.SecureRandom
-import java.security.Signature
-
-
+import java.security.*
+import javax.crypto.KeyGenerator
 
 
 class MainActivity : AppCompatActivity(), View.OnClickListener {
@@ -119,6 +115,22 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 //            exif.saveAttributes()
 //            java.security.Signature.getInstance("ECDSA").initSign(PRIVATE_KEY)
 
+
+        // Getting an android keystore to generate/retrieve key pairs
+//        var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
+//        keyStore.load(null)
+//        var alias:String = "image_key"
+//        if(!keyStore.containsAlias(alias)){
+//            var keyGenerator: KeyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+//            keyGenerator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+//                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+//                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+//                    .setRandomizedEncryptionRequired(false)
+//                    .build())
+//            keyGenerator.generateKey()
+//        }
+
+
         // Generate a ECDSA Signature
 
         // Generate a keypair
@@ -163,21 +175,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
 
         var values = ContentValues()
-        values.put(MediaStore.Images.Media.TITLE, "player")
-        values.put(MediaStore.Images.Media.DISPLAY_NAME, "player")
+        values.put(MediaStore.Images.Media.TITLE, "yichen")
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, "yichen")
         values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
         values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
         values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+        values.put(MediaStore.Images.Media.DESCRIPTION, realSig.toString())
         values.put(MediaStore.Images.Media.DATA, f.absolutePath)
-        this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        var savedPath = this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
 
 
-//        var exif = ExifInterface(currentPhotoPath)
+//        var exif = ExifInterface(savedPath)
 //        exif.setAttribute("signature", realSig.toString())
 //        exif.setAttribute(ExifInterface.TAG_SOFTWARE, "Yichen")
 //        exif.setAttribute(ExifInterface.TAG_DATETIME, "10:10:10")
 //        exif.saveAttributes()
-//        currentPhotoPath = MediaStore.Images.Media.insertImage(this.contentResolver, currentPhotoPath, "Test", "lll")
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
