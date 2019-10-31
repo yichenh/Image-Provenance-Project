@@ -35,7 +35,6 @@ import java.io.InputStream
 import java.util.jar.Manifest
 import java.math.BigInteger
 import java.security.*
-import javax.crypto.KeyGenerator
 
 
 class MainActivity : AppCompatActivity(), View.OnClickListener {
@@ -113,42 +112,35 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 //            val exif = ExifInterface(currentPhotoPath)
 //            exif.setAttribute(ExifInterface.TAG_ORIENTATION, "Up")
 //            exif.saveAttributes()
-//            java.security.Signature.getInstance("ECDSA").initSign(PRIVATE_KEY)
-
 
         // Getting an android keystore to generate/retrieve key pairs
-//        var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
-//        keyStore.load(null)
-//        var alias:String = "image_key"
-//        if(!keyStore.containsAlias(alias)){
-//            var keyGenerator: KeyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-//            keyGenerator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-//                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-//                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-//                    .setRandomizedEncryptionRequired(false)
-//                    .build())
-//            keyGenerator.generateKey()
-//        }
+        var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val alias = "image_keypair"
+
+        if(!keyStore.containsAlias(alias)){
+            // Generate key pair if not exist
+            var kpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC", "AndroidKeyStore")
+            kpg.initialize(KeyGenParameterSpec.Builder(
+                alias,
+                KeyProperties.PURPOSE_SIGN)
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setKeySize(256)
+                .build())
+            kpg.generateKeyPair()
+        }
+
+        val privateKeyEntry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
+        var priv:PrivateKey = privateKeyEntry.privateKey
+        var pub:PublicKey = keyStore.getCertificate(alias).publicKey
 
 
-        // Generate a ECDSA Signature
-
-        // Generate a keypair
-
-        var keyGen: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
-        var random: SecureRandom = SecureRandom.getInstance("SHA1PRNG")
-
-        keyGen.initialize(256, random)
-
-        var pair: KeyPair = keyGen.generateKeyPair()
-        var priv: PrivateKey = pair.private
-        var pub: PublicKey = pair.public
 
         /*
          * Create a Signature object and initialize it with the private key
          */
 
-        var dsa: Signature  = Signature.getInstance("SHA1withECDSA")
+        var dsa: Signature  = Signature.getInstance("SHA256withECDSA")
 
         dsa.initSign(priv)
 
