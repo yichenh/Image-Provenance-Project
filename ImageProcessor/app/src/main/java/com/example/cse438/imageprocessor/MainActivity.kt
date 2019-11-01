@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             R.id.viewPhotoButton -> {
                 val i = Intent(
                     Intent.ACTION_PICK,
-                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                 )
                 startActivityForResult(i, REQUEST_LOAD_IMAGE)
             }
@@ -108,10 +108,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE),
                 MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE)
         }
-
-//            val exif = ExifInterface(currentPhotoPath)
-//            exif.setAttribute(ExifInterface.TAG_ORIENTATION, "Up")
-//            exif.saveAttributes()
 
         // Getting an android keystore to generate/retrieve key pairs
         var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -147,6 +143,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         // Put the data in
 
         var picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
+        // convert bitmap to byte array
         var stream = ByteArrayOutputStream()
         picBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
         var pba = stream.toByteArray()
@@ -173,10 +170,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
         values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
         values.put(MediaStore.Images.Media.DESCRIPTION, realSig.toString())
-        values.put(MediaStore.Images.Media.DATA, f.absolutePath)
-        var savedPath = this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
 
 
+        val exif = ExifInterface(currentPhotoPath)
+        exif.setAttribute(ExifInterface.TAG_ORIENTATION, "Up")
+        exif.saveAttributes()
+        val saved_uri = this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
 //        var exif = ExifInterface(savedPath)
 //        exif.setAttribute("signature", realSig.toString())
 //        exif.setAttribute(ExifInterface.TAG_SOFTWARE, "Yichen")
@@ -216,7 +216,4 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             currentPhotoPath = absolutePath
         }
     }
-
-
-
 }
