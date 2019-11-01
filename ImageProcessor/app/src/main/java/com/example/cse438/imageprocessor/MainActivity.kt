@@ -164,24 +164,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
 
         var values = ContentValues()
-        values.put(MediaStore.Images.Media.TITLE, "yichen")
-        values.put(MediaStore.Images.Media.DISPLAY_NAME, "yichen")
-        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis())
-        values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
-        values.put(MediaStore.Images.Media.DESCRIPTION, realSig.toString())
         values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
 
-
         val exif = ExifInterface(currentPhotoPath)
-        exif.setAttribute(ExifInterface.TAG_ORIENTATION, "Up")
+        exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, realSig.toString())
+        exif.setAttribute(ExifInterface.TAG_COPYRIGHT, "YICHEN 2019")
         exif.saveAttributes()
-        val saved_uri = this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-//        var exif = ExifInterface(savedPath)
-//        exif.setAttribute("signature", realSig.toString())
-//        exif.setAttribute(ExifInterface.TAG_SOFTWARE, "Yichen")
-//        exif.setAttribute(ExifInterface.TAG_DATETIME, "10:10:10")
-//        exif.saveAttributes()
+        this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
