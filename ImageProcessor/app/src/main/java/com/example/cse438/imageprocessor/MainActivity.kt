@@ -1,7 +1,6 @@
 package com.example.cse438.imageprocessor
 
 import android.content.Intent
-import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
@@ -14,26 +13,18 @@ import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
-import android.graphics.Bitmap
-import android.R.attr.data
-import android.app.PendingIntent.getActivity
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
-import android.support.v4.app.SupportActivity
-import android.support.v4.app.SupportActivity.ExtraData
-import android.support.v4.content.ContextCompat.getSystemService
-import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.media.ExifInterface
-import android.media.MediaScannerConnection
+import android.net.Uri
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.util.jar.Manifest
-import java.math.BigInteger
+import android.widget.EditText
+import android.widget.TextView
+import java.nio.ByteBuffer
 import java.security.*
 
 
@@ -49,6 +40,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         setContentView(R.layout.activity_main)
         cameraButton.setOnClickListener(this)
         viewPhotoButton.setOnClickListener(this)
+        display.setOnClickListener(this)
     }
 
     override fun onClick(v: View) {
@@ -82,6 +74,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 )
                 startActivityForResult(i, REQUEST_LOAD_IMAGE)
             }
+            R.id.display -> {
+                var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                val alias = "image_keypair"
+                val textDisplay = findViewById<EditText>(R.id.editText)
+
+                if(!keyStore.containsAlias(alias)){
+                    val err = "Key not available"
+                    textDisplay.setText(err)
+                } else {
+                    var pub:PublicKey = keyStore.getCertificate(alias).publicKey
+                    val keyText = Base64.getEncoder().encodeToString(pub.encoded)
+                    textDisplay.setText(keyText)
+                }
+            }
         }
     }
 
@@ -99,7 +106,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun galleryAddPic() {
-        val f = File(currentPhotoPath)
         //check permission. if not then request permission
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED) {
@@ -126,11 +132,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             kpg.generateKeyPair()
         }
 
+        // Get the public/private keypair for signature
         val privateKeyEntry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
         var priv:PrivateKey = privateKeyEntry.privateKey
         var pub:PublicKey = keyStore.getCertificate(alias).publicKey
-
-
 
         /*
          * Create a Signature object and initialize it with the private key
@@ -143,10 +148,14 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         // Put the data in
 
         var picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
-        // convert bitmap to byte array
-        var stream = ByteArrayOutputStream()
-        picBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
-        var pba = stream.toByteArray()
+
+        //Convert picture bitmap to byte array
+        var bytes = picBitmap.byteCount
+        var buffer: ByteBuffer = ByteBuffer.allocate(bytes) //Create a new buffer
+        picBitmap.copyPixelsToBuffer(buffer); //Move the byte data to the buffer
+
+        var pba = buffer.array() //Get the underlying array containing the data.
+
 
         dsa.update(pba)
 
@@ -158,10 +167,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
         var realSig = dsa.sign()
 
+        // Verify the signature
         dsa.initVerify(pub)
         dsa.update(pba)
         var isReal = dsa.verify(realSig)
-
 
         var values = ContentValues()
         values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
@@ -171,6 +180,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         exif.setAttribute(ExifInterface.TAG_COPYRIGHT, "YICHEN 2019")
         exif.saveAttributes()
         this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+
+
+//        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
+//            val f = File(currentPhotoPath)
+//            mediaScanIntent.data = Uri.fromFile(f)
+//            sendBroadcast(mediaScanIntent)
+//        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
