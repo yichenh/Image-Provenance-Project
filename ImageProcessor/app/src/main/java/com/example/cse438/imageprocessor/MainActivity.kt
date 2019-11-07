@@ -166,6 +166,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
          */
 
         var realSig = dsa.sign()
+        val sig_string = Base64.getEncoder().encodeToString(realSig)
+
+        //testing
+        val textDisplay = findViewById<EditText>(R.id.editText)
+        textDisplay.setText(sig_string)
 
         // Verify the signature
         dsa.initVerify(pub)
@@ -176,7 +181,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
 
         val exif = ExifInterface(currentPhotoPath)
-        exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, realSig.toString())
+        exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, sig_string)
         exif.setAttribute(ExifInterface.TAG_COPYRIGHT, "YICHEN 2019")
         exif.saveAttributes()
         this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
