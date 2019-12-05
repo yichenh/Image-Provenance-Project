@@ -117,13 +117,30 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE)
         }
 
+        // Get the string serialized signature string
+        val image_signature = signImage()
+
+        // Add signature string to image exif tag
+        var values = ContentValues()
+        values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
+        val exif = ExifInterface(currentPhotoPath)
+        exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, image_signature)
+        exif.saveAttributes()
+
+        // Save the image
+        this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+    }
+
+    private fun signImage(): String{
         // Getting an android keystore to generate/retrieve key pairs
         var keyStore:KeyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
+
+        // Name the keys we are using for image signing the below alias
         val alias = "image_keypair"
 
+        // Generate key pair if not exist
         if(!keyStore.containsAlias(alias)){
-            // Generate key pair if not exist
             var kpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC", "AndroidKeyStore")
             kpg.initialize(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN).setDigests(KeyProperties.DIGEST_SHA256).setKeySize(256).build())
             kpg.generateKeyPair()
@@ -134,69 +151,35 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         var priv:PrivateKey = privateKeyEntry.privateKey
         var pub:PublicKey = keyStore.getCertificate(alias).publicKey
 
-        /*
-         * Create a Signature object and initialize it with the private key
-         */
-
+        // Create a Signature object and initialize it with the private key
         var dsa: Signature  = Signature.getInstance("SHA256withECDSA")
 
         dsa.initSign(priv)
 
-        // Put the data in
-        // Get picture byte array
+        // Get ARGB pixel data
         var picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
-
-
-        // Picture Bit Map to Byte Array V1:
-//        var baos = ByteArrayOutputStream()
-//        picBitmap.compress(Bitmap.CompressFormat.JPEG, 70 , baos)
-//        var pba = baos.toByteArray()
-//        baos.close()
-
-        // Picture Bit Map to Byte Array V2:
-//        var bytes = picBitmap.byteCount
-//        var buffer: ByteBuffer = ByteBuffer.allocate(bytes) //Create a new buffer
-//        picBitmap.copyPixelsToBuffer(buffer) //Move the byte data to the buffer
-//
-//        var pba = buffer.array() //Get the underlying array containing the data.
-
-        // Picture Bit Map to Byte Array V3:
         var argbPixels = IntArray(picBitmap.width * picBitmap.height)
         picBitmap.getPixels(argbPixels, 0, picBitmap.width, 0, 0, picBitmap.width, picBitmap.height)
 
+        // Convert pixel data to byte array
         var buffer: ByteBuffer = ByteBuffer.allocate(argbPixels.size * 4)
         var intbuf: IntBuffer = buffer.asIntBuffer()
         intbuf.put(argbPixels)
         var pba = buffer.array()
 
+        // Put the picture byte array in
         dsa.update(pba)
 
-        /*
-         * Now that all the data to be signed has been read in, generate a
-         * signature for it
-         */
-
+        // Now that all the data to be signed has been read in, generate signature for it
         var realSig = dsa.sign()
+
+        // Convert signature to string with base 64 encoder
         val sig_string = Base64.getEncoder().encodeToString(realSig)
 
-        //testing
+        //Display Image Signature in the text field
         val textDisplay = findViewById<EditText>(R.id.editText)
         textDisplay.setText(sig_string)
-
-        // Verify the signature
-        dsa.initVerify(pub)
-        dsa.update(pba)
-        var isReal = dsa.verify(realSig)
-
-        var values = ContentValues()
-        values.put(MediaStore.Images.Media.DATA, currentPhotoPath)
-
-        val exif = ExifInterface(currentPhotoPath)
-        exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, sig_string)
-        exif.setAttribute(ExifInterface.TAG_COPYRIGHT, "YICHEN 2019")
-        exif.saveAttributes()
-
-        this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        return sig_string
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
