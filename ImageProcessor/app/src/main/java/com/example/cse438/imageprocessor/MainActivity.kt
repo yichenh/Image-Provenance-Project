@@ -15,16 +15,18 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.ExifInterface
-import android.net.Uri
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.widget.EditText
 import android.widget.TextView
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import java.nio.IntBuffer
 import java.security.*
 
 
@@ -123,12 +125,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         if(!keyStore.containsAlias(alias)){
             // Generate key pair if not exist
             var kpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC", "AndroidKeyStore")
-            kpg.initialize(KeyGenParameterSpec.Builder(
-                alias,
-                KeyProperties.PURPOSE_SIGN)
-                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-                .setKeySize(256)
-                .build())
+            kpg.initialize(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN).setDigests(KeyProperties.DIGEST_SHA256).setKeySize(256).build())
             kpg.generateKeyPair()
         }
 
@@ -146,19 +143,33 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         dsa.initSign(priv)
 
         // Put the data in
-
+        // Get picture byte array
         var picBitmap = BitmapFactory.decodeFile(currentPhotoPath)
 
-        //Convert picture bitmap to byte array
-        var bytes = picBitmap.byteCount
-        var buffer: ByteBuffer = ByteBuffer.allocate(bytes) //Create a new buffer
-        picBitmap.copyPixelsToBuffer(buffer); //Move the byte data to the buffer
 
-        var pba = buffer.array() //Get the underlying array containing the data.
+        // Picture Bit Map to Byte Array V1:
+//        var baos = ByteArrayOutputStream()
+//        picBitmap.compress(Bitmap.CompressFormat.JPEG, 70 , baos)
+//        var pba = baos.toByteArray()
+//        baos.close()
 
+        // Picture Bit Map to Byte Array V2:
+//        var bytes = picBitmap.byteCount
+//        var buffer: ByteBuffer = ByteBuffer.allocate(bytes) //Create a new buffer
+//        picBitmap.copyPixelsToBuffer(buffer) //Move the byte data to the buffer
+//
+//        var pba = buffer.array() //Get the underlying array containing the data.
+
+        // Picture Bit Map to Byte Array V3:
+        var argbPixels = IntArray(picBitmap.width * picBitmap.height)
+        picBitmap.getPixels(argbPixels, 0, picBitmap.width, 0, 0, picBitmap.width, picBitmap.height)
+
+        var buffer: ByteBuffer = ByteBuffer.allocate(argbPixels.size * 4)
+        var intbuf: IntBuffer = buffer.asIntBuffer()
+        intbuf.put(argbPixels)
+        var pba = buffer.array()
 
         dsa.update(pba)
-
 
         /*
          * Now that all the data to be signed has been read in, generate a
@@ -184,14 +195,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, sig_string)
         exif.setAttribute(ExifInterface.TAG_COPYRIGHT, "YICHEN 2019")
         exif.saveAttributes()
+
         this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-
-
-//        Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE).also { mediaScanIntent ->
-//            val f = File(currentPhotoPath)
-//            mediaScanIntent.data = Uri.fromFile(f)
-//            sendBroadcast(mediaScanIntent)
-//        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
