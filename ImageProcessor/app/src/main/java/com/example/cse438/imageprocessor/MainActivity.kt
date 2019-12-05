@@ -149,7 +149,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         // Get the public/private keypair for signature
         val privateKeyEntry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
         var priv:PrivateKey = privateKeyEntry.privateKey
-        var pub:PublicKey = keyStore.getCertificate(alias).publicKey
+//        var pub:PublicKey = keyStore.getCertificate(alias).publicKey
 
         // Create a Signature object and initialize it with the private key
         var dsa: Signature  = Signature.getInstance("SHA256withECDSA")
@@ -177,8 +177,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         val sig_string = Base64.getEncoder().encodeToString(realSig)
 
         //Display Image Signature in the text field
-        val textDisplay = findViewById<EditText>(R.id.editText)
-        textDisplay.setText(sig_string)
+//        val textDisplay = findViewById<EditText>(R.id.editText)
+//        textDisplay.setText(sig_string)
         return sig_string
     }
 
